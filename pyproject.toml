@@ -1,0 +1,9 @@
+[project]
+name = "identity-service"
+version = "0.1.0"
+description = "Microservice for authentication and user management."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.12"
+dependencies = []
