@@ -1,0 +1,72 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+        working-directory: ${{ github.workspace }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Create .env file
+        run: |
+          cat > .env << EOF
+          COMPOSE_PROJECT_NAME=${{ vars.SERVICE_NAME }}
+
+          SERVICE_NAME=${{ vars.SERVICE_NAME }}
+          DEBUG=${{ vars.DEBUG }}
+          HOST=${{ vars.HOST }}
+          PORT=${{ vars.PORT }}
+
+          POSTGRES_HOST=${{ vars.POSTGRES_HOST }}
+          POSTGRES_PORT=${{ vars.POSTGRES_PORT }}
+          POSTGRES_DB=${{ vars.POSTGRES_DB }}
+          POSTGRES_USER=${{ vars.POSTGRES_USER }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+
+          ALGORITHM=${{ vars.ALGORITHM }}
+          ACCESS_TOKEN_EXPIRE_MINUTES=${{ vars.ACCESS_TOKEN_EXPIRE_MINUTES }}
+
+          LOG_LEVEL=${{ vars.LOG_LEVEL }}
+          LOG_FORMAT=${{ vars.LOG_FORMAT }}
+          LOG_OUTPUT=${{ vars.LOG_OUTPUT }}
+          EOF
+          chmod 600 .env
+
+      - name: Deploy stack
+        run: docker compose -f docker-compose.yml up -d --build --force-recreate
+
+      - name: Wait for API to be healthy
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:${{ vars.PORT }}/api/v1/health; then
+              echo "API is healthy"
+              exit 0
+            fi
+            echo "Waiting for API... ($i/30)"
+            sleep 2
+          done
+          echo "API health check failed"
+          exit 1
+
+      - name: Run database migrations
+        run: docker compose -f docker-compose.yml exec -T api alembic upgrade head
+
+      - name: Final health check
+        run: curl -sf http://localhost:${{ vars.PORT }}/api/v1/health
+
+      - name: Cleanup old images
+        run: docker image prune -f --filter "until=24h"

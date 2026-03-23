@@ -1,0 +1,26 @@
+# Python-generated files
+__pycache__/
+*.py[co]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Environment variables
+.env
+.env.example
+
+# Cache & tools
+.ruff_cache/
+
+# Git
+.git/
+
+# Local configs
+docker-compose.yml
+docker-compose.override.yml
+Makefile
+.pre-commit-config.yaml
